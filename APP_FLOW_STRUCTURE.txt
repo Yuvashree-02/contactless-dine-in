@@ -1,0 +1,456 @@
+================================================================================
+                    CONTACTLESS DINE-IN APPLICATION
+                         FLOW STRUCTURE DIAGRAM
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          CUSTOMER FLOW                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. ENTRY POINT - Homepage (/)
+   │
+   ├─→ [Scan QR Code Button]
+   │   │
+   │   ├─→ QRScanner Component
+   │   │   ├─→ (Real QR Scanner - Camera)
+   │   │   └─→ (Manual Table ID Entry - For Testing)
+   │   │
+   │   └─→ Extracts: { tableId, tableNumber, restaurantUrl }
+   │       │
+   │       └─→ Redirects to: /menu?table={tableId}
+   │
+   ├─→ [Demo: View Menu Button] → /table/1 (Test Route)
+   │
+   └─→ [Staff Login Button] → /admin/login
+
+2. MENU PAGE (/menu?table={tableId})
+   │
+   ├─→ Load Menu Items from Backend
+   │   └─→ GET /api/menu
+   │
+   ├─→ Load Categories
+   │   └─→ GET /api/menu/categories/list
+   │
+   ├─→ Save Table ID in CartContext
+   │
+   ├─→ Display Menu Items by Category
+   │   ├─→ Filter by: All, Appetizers, Main Course, Beverages, Desserts
+   │   ├─→ Veg/Non-Veg Icons
+   │   └─→ Prices in ₹ (Rupees)
+   │
+   └─→ [Add to Cart] → CartContext.addToCart()
+       │
+       └─→ [View Cart] → Cart Component (Sidebar)
+
+3. CART COMPONENT (Sidebar)
+   │
+   ├─→ Display Cart Items
+   │   ├─→ Item Name, Price, Quantity
+   │   ├─→ [+] [-] Quantity Controls
+   │   └─→ [Remove Item]
+   │
+   ├─→ Calculate:
+   │   ├─→ Subtotal
+   │   ├─→ Tax (5%)
+   │   └─→ Total Amount
+   │
+   └─→ [Proceed to Checkout] → /checkout
+
+4. CHECKOUT PAGE (/checkout)
+   │
+   ├─→ Display Order Summary
+   │   ├─→ Table Number
+   │   ├─→ All Cart Items
+   │   └─→ Total Amount with Tax
+   │
+   ├─→ [Proceed to Payment]
+   │   │
+   │   └─→ Create Order (Status: "Pending Payment")
+   │       └─→ POST /api/orders
+   │           {
+   │             tableId: string,
+   │             items: [...],
+   │             totalAmount: number
+   │           }
+   │
+   └─→ Open Payment Gateway Modal
+
+5. PAYMENT GATEWAY (Modal)
+   │
+   ├─→ Payment Methods:
+   │   ├─→ 📱 UPI (Google Pay, PhonePe, Paytm)
+   │   ├─→ 💳 Credit/Debit Card
+   │   ├─→ 🏦 Net Banking
+   │   └─→ 💰 Digital Wallet
+   │
+   ├─→ [Pay Now] → Process Payment
+   │   │
+   │   ├─→ POST /api/payment/create-payment-intent
+   │   │   └─→ Returns: { paymentId }
+   │   │
+   │   └─→ POST /api/payment/verify-payment
+   │       └─→ Updates Order:
+   │           ├─→ paymentStatus: "Paid"
+   │           ├─→ status: "Received" (Sent to Kitchen)
+   │           ├─→ paymentMethod, paymentId, paidAt
+   │           └─→ Returns: { success: true }
+   │
+   ├─→ [Payment Success]
+   │   ├─→ Clear Cart
+   │   └─→ Redirect to: /order/{orderId}
+   │
+   └─→ [Cancel] → Close Modal
+
+6. ORDER TRACKING PAGE (/order/{orderId})
+   │
+   ├─→ Poll Order Status (Every 10 seconds)
+   │   └─→ GET /api/orders/{orderId}
+   │
+   ├─→ Display Order Details:
+   │   ├─→ Order ID
+   │   ├─→ Table Number
+   │   ├─→ All Items Ordered
+   │   └─→ Total Amount Paid
+   │
+   ├─→ VISUAL PROGRESS TIMELINE:
+   │   │
+   │   ├─→ Step 1: ✓ Received (Green)
+   │   ├─→ Step 2: 👨‍🍳 In Kitchen (Animated if current)
+   │   ├─→ Step 3: 🍽️ Ready (Pending)
+   │   └─→ Step 4: ✅ Served (Final)
+   │
+   ├─→ Status Descriptions:
+   │   ├─→ "Received": Order confirmed and sent to kitchen
+   │   ├─→ "In Kitchen": Chef is preparing your delicious meal
+   │   ├─→ "Ready": Your order is ready for serving
+   │   └─→ "Served": Enjoy your meal!
+   │
+   └─→ [Order More] → Back to Menu
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          ADMIN FLOW                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. ADMIN LOGIN (/admin/login)
+   │
+   ├─→ [Login Tab]
+   │   ├─→ Username
+   │   ├─→ Password
+   │   └─→ POST /api/auth/login
+   │       └─→ Returns: { token, user: { username, role } }
+   │           └─→ Save to: localStorage + AuthContext
+   │
+   ├─→ [Register Tab]
+   │   ├─→ Username
+   │   ├─→ Password
+   │   ├─→ Role (admin/staff)
+   │   └─→ POST /api/auth/register
+   │
+   └─→ [Success] → Redirect to: /admin
+
+2. ADMIN DASHBOARD (/admin)
+   │
+   ├─→ Header:
+   │   ├─→ Welcome, {username}
+   │   ├─→ [📋 Manage Tables] → /admin/tables
+   │   ├─→ [🍴 Manage Menu] → /admin/menu
+   │   └─→ [Logout]
+   │
+   ├─→ Filter Orders:
+   │   ├─→ All
+   │   ├─→ Received
+   │   ├─→ In Kitchen
+   │   ├─→ Ready
+   │   └─→ Served
+   │
+   ├─→ Display Orders (Only PAID Orders):
+   │   │
+   │   ├─→ GET /api/orders
+   │   │   └─→ Filter: paymentStatus === "Paid"
+   │   │
+   │   └─→ Auto-refresh every 5 seconds
+   │
+   ├─→ Order Card:
+   │   ├─→ Order ID
+   │   ├─→ Table Number
+   │   ├─→ Items List
+   │   ├─→ Total Amount
+   │   ├─→ Current Status (Color-coded)
+   │   ├─→ Time Info
+   │   │
+   │   └─→ Status Update Buttons:
+   │       ├─→ [Mark as In Kitchen]
+   │       ├─→ [Mark as Ready]
+   │       └─→ [Mark as Served]
+   │           └─→ PATCH /api/orders/{id}/status
+   │
+   └─→ Real-time Dashboard Updates
+
+3. TABLE MANAGEMENT (/admin/tables)
+   │
+   ├─→ Header:
+   │   ├─→ [🔄 Regenerate All QR Codes]
+   │   │   └─→ POST /api/qr/regenerate-all
+   │   │
+   │   └─→ [+ Add New Table]
+   │       └─→ Open Create Table Modal
+   │
+   ├─→ Display All Tables (Grid Layout):
+   │   │
+   │   └─→ GET /api/tables
+   │
+   ├─→ Table Card:
+   │   ├─→ Table Number
+   │   ├─→ Capacity (persons)
+   │   ├─→ Status Badge: Available ✅ / Occupied ❌
+   │   ├─→ QR Code Image (300x300px)
+   │   │
+   │   └─→ Actions:
+   │       ├─→ [📥 Download QR] → Save as PNG
+   │       ├─→ [🖨️ Print QR] → Open Print Dialog
+   │       ├─→ [Toggle Availability] → PUT /api/tables/{id}
+   │       └─→ [🗑️ Delete Table] → DELETE /api/tables/{id}
+   │
+   └─→ Create Table Modal:
+       ├─→ Table Number (unique)
+       ├─→ Capacity (1-20)
+       │
+       └─→ [Create Table] → POST /api/tables
+           └─→ Auto-generates QR Code with:
+               {
+                 tableId: ObjectId,
+                 tableNumber: number,
+                 restaurantUrl: "http://localhost:3000/menu?table={tableId}"
+               }
+
+4. MENU MANAGEMENT (/admin/menu)
+   │
+   ├─→ Display All Menu Items:
+   │   └─→ GET /api/menu
+   │
+   ├─→ [+ Add New Menu Item]
+   │   │
+   │   └─→ Create Item Modal:
+   │       ├─→ Name
+   │       ├─→ Description
+   │       ├─→ Price (₹)
+   │       ├─→ Category (Appetizers, Main Course, etc.)
+   │       ├─→ Veg/Non-Veg
+   │       ├─→ Image URL
+   │       ├─→ Availability Toggle
+   │       │
+   │       └─→ POST /api/menu
+   │
+   ├─→ [Edit Item] → PUT /api/menu/{id}
+   │
+   └─→ [Delete Item] → DELETE /api/menu/{id}
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      BACKEND API ENDPOINTS                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+AUTH ROUTES (/api/auth)
+├─→ POST   /login           - User login (returns JWT token)
+└─→ POST   /register        - User registration
+
+MENU ROUTES (/api/menu)
+├─→ GET    /                - Get all menu items
+├─→ GET    /categories/list - Get all categories
+├─→ GET    /category/:cat   - Get items by category
+├─→ POST   /                - Create menu item [ADMIN]
+├─→ PUT    /:id             - Update menu item [ADMIN]
+└─→ DELETE /:id             - Delete menu item [ADMIN]
+
+ORDER ROUTES (/api/orders)
+├─→ POST   /                - Create new order (status: "Pending Payment")
+├─→ GET    /:id             - Get order by ID
+├─→ GET    /                - Get all orders (with filter)
+├─→ PATCH  /:id/status      - Update order status [ADMIN]
+└─→ GET    /table/:tableId  - Get orders for specific table
+
+TABLE ROUTES (/api/tables)
+├─→ GET    /                - Get all tables
+├─→ GET    /:id             - Get table by ID
+├─→ POST   /                - Create table (auto-generates QR code)
+├─→ PUT    /:id             - Update table
+└─→ DELETE /:id             - Delete table
+
+QR ROUTES (/api/qr)
+├─→ POST   /generate/:tableId  - Generate QR code for specific table
+├─→ POST   /regenerate-all     - Regenerate all QR codes
+└─→ POST   /scan               - Validate scanned QR code
+
+PAYMENT ROUTES (/api/payment)
+├─→ POST   /create-payment-intent  - Initialize payment (returns paymentId)
+└─→ POST   /verify-payment         - Verify and complete payment
+                                     └─→ Updates order to "Paid" & "Received"
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        DATABASE MODELS                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+USER MODEL
+{
+  username: String (unique, required)
+  password: String (hashed, required)
+  role: String (enum: ["admin", "staff"], default: "staff")
+  createdAt: Date
+}
+
+MENU ITEM MODEL
+{
+  name: String (required)
+  description: String (required)
+  price: Number (required)
+  category: String (required)
+  imageUrl: String (required)
+  isVeg: Boolean (default: true)
+  isAvailable: Boolean (default: true)
+  createdAt: Date
+  updatedAt: Date
+}
+
+TABLE MODEL
+{
+  tableNumber: Number (unique, required)
+  capacity: Number (required)
+  isAvailable: Boolean (default: true)
+  qrCode: String (Base64 data URL)
+  createdAt: Date
+  updatedAt: Date
+}
+
+ORDER MODEL
+{
+  tableId: ObjectId (ref: "Table", required)
+  items: [
+    {
+      menuItemId: ObjectId (ref: "MenuItem")
+      name: String
+      quantity: Number
+      price: Number
+    }
+  ]
+  totalAmount: Number (required)
+  status: String (enum: [
+    "Pending Payment",
+    "Received",
+    "In Kitchen",
+    "Ready",
+    "Served"
+  ], default: "Pending Payment")
+  paymentStatus: String (enum: ["Pending", "Paid", "Failed"])
+  paymentMethod: String (UPI, Card, Net Banking, Wallet)
+  paymentId: String
+  paidAt: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     STATE MANAGEMENT (React Context)                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+CART CONTEXT
+├─→ State:
+│   ├─→ cart: CartItem[]
+│   └─→ tableId: string | null
+│
+└─→ Methods:
+    ├─→ addToCart(item)
+    ├─→ removeFromCart(itemId)
+    ├─→ updateQuantity(itemId, quantity)
+    ├─→ clearCart()
+    ├─→ getCartTotal()
+    ├─→ getCartCount()
+    └─→ setTableId(id)
+
+AUTH CONTEXT
+├─→ State:
+│   ├─→ user: { username, role } | null
+│   ├─→ token: string | null
+│   └─→ isAuthenticated: boolean
+│
+└─→ Methods:
+    ├─→ login(username, password)
+    ├─→ register(username, password, role)
+    └─→ logout()
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          ORDER STATUS FLOW                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. "Pending Payment" (Initial)
+   ↓
+   Customer completes payment
+   ↓
+2. "Received" (Kitchen Notified)
+   ↓
+   Admin marks: "In Kitchen"
+   ↓
+3. "In Kitchen" (Being Prepared)
+   ↓
+   Admin marks: "Ready"
+   ↓
+4. "Ready" (Waiting for Serve)
+   ↓
+   Admin marks: "Served"
+   ↓
+5. "Served" (Complete) ✅
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          QR CODE WORKFLOW                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+RESTAURANT SETUP:
+1. Admin creates table → QR code auto-generated
+2. Admin downloads/prints QR code
+3. QR code placed on physical table
+
+CUSTOMER USAGE:
+1. Customer scans QR code with phone
+2. QR contains: { tableId, tableNumber, restaurantUrl }
+3. Browser opens menu page with table parameter
+4. Table ID saved in cart context
+5. Customer orders → Order linked to table
+6. Kitchen receives order with table number
+
+QR CODE DATA:
+{
+  "tableId": "673fcd7a1234567890abcdef",
+  "tableNumber": 5,
+  "restaurantUrl": "http://localhost:3000/menu?table=673fcd7a1234567890abcdef"
+}
+
+Encoding: JSON → Base64 → QR Code Image (300x300px)
+Format: PNG Data URL (stored in MongoDB)
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          KEY FEATURES                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+✅ Contactless Ordering via QR Codes
+✅ Payment-First System (Orders sent to kitchen only after payment)
+✅ Real-time Order Tracking with Visual Timeline
+✅ Multiple Payment Methods (UPI, Card, Net Banking, Wallet)
+✅ Admin Dashboard with Live Order Management
+✅ Table Management with QR Code Generation
+✅ Menu Management (CRUD Operations)
+✅ Indian Currency (₹ Rupees)
+✅ Veg/Non-Veg Indicators
+✅ Cart Management with Persistent Storage
+✅ Role-based Authentication (Admin/Staff)
+✅ Auto-refresh Order Status
+✅ Print & Download QR Codes
+✅ Responsive Design (Mobile-first)
+
+================================================================================
+                              END OF FLOW STRUCTURE
+================================================================================

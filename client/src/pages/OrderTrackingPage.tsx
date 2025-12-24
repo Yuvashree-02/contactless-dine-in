@@ -1,0 +1,190 @@
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { orderAPI } from '../services/api';
+import { Order } from '../types';
+import { getStatusColor } from '../utils/helpers';
+
+const OrderTrackingPage: React.FC = () => {
+    const { orderId } = useParams<{ orderId: string }>();
+    const [order, setOrder] = useState<Order | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string>('');
+
+    useEffect(() => {
+        const fetchOrder = async () => {
+            if (!orderId) return;
+            
+            try {
+                setLoading(true);
+                const order = await orderAPI.getById(orderId);
+                setOrder(order);
+            } catch (err: any) {
+                setError(err.response?.data?.message || 'Failed to fetch order');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchOrder();
+        
+        // Poll for updates every 10 seconds
+        const interval = setInterval(fetchOrder, 10000);
+        return () => clearInterval(interval);
+    }, [orderId]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
+                <div className="text-xl text-gray-600">Loading order details...</div>
+            </div>
+        );
+    }
+
+    if (error || !order) {
+        return (
+            <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
+                <div className="text-xl text-red-600">{error || 'Order not found'}</div>
+            </div>
+        );
+    }
+
+    // If payment is pending, show different message
+    if (order.status === 'Pending Payment' || order.paymentStatus === 'Pending') {
+      return (
+        <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
+          <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-8 text-center">
+            <div className="text-6xl mb-4">⏳</div>
+            <h1 className="text-2xl font-bold mb-4 text-gray-800">Payment Pending</h1>
+            <p className="text-gray-600 mb-6">
+              Your order is awaiting payment confirmation. Once payment is completed, 
+              your order will be sent to the kitchen.
+            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-sm text-gray-700">
+                Order ID: <span className="font-semibold">{order._id}</span>
+              </p>
+              <p className="text-sm text-gray-700 mt-2">
+                Total: <span className="font-semibold text-xl">₹{order.totalAmount.toFixed(2)}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const statusSteps = ['Received', 'In Kitchen', 'Ready', 'Served'];
+    const currentStepIndex = statusSteps.indexOf(order.status);
+
+    return (
+        <div className="min-h-screen bg-gray-50 p-8">
+            <div className="max-w-3xl mx-auto">
+                <div className="bg-white rounded-lg shadow-md p-8">
+                    <h1 className="text-3xl font-bold mb-6 text-gray-800">Track Your Order</h1>
+                    
+                    <div className="mb-8">
+                        <p className="text-gray-600 mb-2">Order ID: <span className="font-semibold">{order._id}</span></p>
+                        <p className="text-gray-600 mb-2">Table: <span className="font-semibold">{order.tableId}</span></p>
+                        <p className="text-gray-600 mb-2">Total: <span className="font-semibold text-xl">₹{order.totalAmount.toFixed(2)}</span></p>
+                        <div className="mt-3 flex items-center gap-2">
+                            <span className="text-gray-600">Payment Status:</span>
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : 
+                                order.paymentStatus === 'Failed' ? 'bg-red-100 text-red-800' : 
+                                'bg-yellow-100 text-yellow-800'
+                            }`}>
+                                {order.paymentStatus || 'Pending'}
+                            </span>
+                        </div>
+                        {order.paymentMethod && (
+                            <p className="text-gray-600 text-sm mt-1">Payment Method: <span className="font-semibold">{order.paymentMethod}</span></p>
+                        )}
+                    </div>
+
+                    {/* Status Timeline */}
+                    <div className="mb-8">
+                        <h2 className="text-xl font-semibold mb-6">Order Progress</h2>
+                        <div className="relative">
+                            {/* Progress Line */}
+                            <div className="absolute left-4 top-0 bottom-0 w-1 bg-gray-200" style={{ height: 'calc(100% - 40px)' }}>
+                                <div 
+                                    className="bg-green-500 transition-all duration-500"
+                                    style={{ 
+                                        height: currentStepIndex >= 0 ? `${(currentStepIndex / (statusSteps.length - 1)) * 100}%` : '0%',
+                                        width: '100%'
+                                    }}
+                                />
+                            </div>
+
+                            {statusSteps.map((step, index) => {
+                                const stepLabels: { [key: string]: { icon: string; desc: string } } = {
+                                    'Received': { icon: '✓', desc: 'Order confirmed and payment received' },
+                                    'In Kitchen': { icon: '👨‍🍳', desc: 'Your food is being prepared' },
+                                    'Ready': { icon: '🍽️', desc: 'Your order is ready' },
+                                    'Served': { icon: '✅', desc: 'Delivered to your table' }
+                                };
+                                
+                                return (
+                                    <div key={step} className="flex items-start mb-8 relative">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold z-10 transition-all duration-300 ${
+                                            index < currentStepIndex 
+                                                ? 'bg-green-500 text-white shadow-lg' 
+                                                : index === currentStepIndex
+                                                    ? 'bg-blue-500 text-white shadow-xl animate-pulse'
+                                                    : 'bg-gray-300 text-gray-600'
+                                        }`}>
+                                            {index < currentStepIndex ? '✓' : stepLabels[step]?.icon || (index + 1)}
+                                        </div>
+                                        <div className="ml-6 flex-1">
+                                            <p className={`font-bold text-lg ${
+                                                index === currentStepIndex 
+                                                    ? 'text-blue-600' 
+                                                    : index < currentStepIndex 
+                                                        ? 'text-green-600' 
+                                                        : 'text-gray-400'
+                                            }`}>
+                                                {step}
+                                            </p>
+                                            <p className={`text-sm mt-1 ${
+                                                index <= currentStepIndex ? 'text-gray-600' : 'text-gray-400'
+                                            }`}>
+                                                {stepLabels[step]?.desc}
+                                            </p>
+                                            {index === currentStepIndex && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <div className="flex gap-1">
+                                                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                                    </div>
+                                                    <span className="text-sm text-blue-600 font-medium">In Progress</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Order Items */}
+                    <div>
+                        <h2 className="text-xl font-semibold mb-4">Order Items</h2>
+                        <div className="space-y-2">
+                            {order.items.map((item, index) => (
+                                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                    <div>
+                                        <p className="font-medium">{item.name}</p>
+                                        <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                                    </div>
+                                    <p className="font-semibold">₹{(item.price * item.quantity).toFixed(2)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default OrderTrackingPage;
