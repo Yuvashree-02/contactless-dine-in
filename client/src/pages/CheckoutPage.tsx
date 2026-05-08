@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { orderAPI } from '../services/api';
+import { orderAPI, tableAPI } from '../services/api';
 import { formatPrice } from '../utils/helpers';
 import PaymentGateway from '../components/Payment/PaymentGateway';
 
@@ -13,12 +13,33 @@ const CheckoutPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [orderId, setOrderId] = useState<string>('');
+  const [tableDisplayLabel, setTableDisplayLabel] = useState<string>('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
 
   const currentTableId = cartTableId || tableId || localStorage.getItem('tableId') || '1';
+
+  useEffect(() => {
+    const fetchTableLabel = async () => {
+      try {
+        const table = await tableAPI.getById(currentTableId);
+        setTableDisplayLabel(String(table.tableNumber || table.tableCode || currentTableId));
+      } catch {
+        setTableDisplayLabel(currentTableId);
+      }
+    };
+
+    fetchTableLabel();
+  }, [currentTableId]);
 
   const handlePlaceOrder = async () => {
     if (cart.length === 0) {
       setError('Your cart is empty');
+      return;
+    }
+
+    if (!customerName.trim() || !customerPhone.trim()) {
+      setError('Please enter your name and phone number');
       return;
     }
 
@@ -28,6 +49,8 @@ const CheckoutPage: React.FC = () => {
 
       const orderData = {
         tableId: currentTableId,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
         items: cart.map((item) => ({
           menuItemId: item._id,
           name: item.name,
@@ -39,6 +62,8 @@ const CheckoutPage: React.FC = () => {
 
       const order = await orderAPI.create(orderData);
       setOrderId(order._id);
+  localStorage.setItem('activeOrderId', order._id);
+  localStorage.setItem(`activeOrderStatus:${order._id}`, order.status);
       setShowPayment(true);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to place order');
@@ -49,6 +74,11 @@ const CheckoutPage: React.FC = () => {
 
   const handlePaymentSuccess = () => {
     clearCart();
+    // Let the order tracking page show a receipt/feedback prompt
+    try {
+      localStorage.setItem('receiptSent', 'true');
+      localStorage.setItem('recentOrderId', orderId);
+    } catch {}
     navigate(`/order/${orderId}`);
   };
 
@@ -117,7 +147,35 @@ const CheckoutPage: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Table Information</h2>
-          <p className="text-gray-600">Table Number: <span className="font-semibold">{currentTableId}</span></p>
+          <p className="text-gray-600">Table Number: <span className="font-semibold">{tableDisplayLabel || currentTableId}</span></p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Your Details</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Enter your name"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+              <input
+                type="tel"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="Enter phone number"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+          </div>
         </div>
 
         {error && (

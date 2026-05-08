@@ -54,13 +54,15 @@ export const menuAPI = {
 
 // Order API
 export const orderAPI = {
-  create: async (orderData: { tableId: string; items: any[]; totalAmount: number }): Promise<Order> => {
+  create: async (orderData: { tableId: string; customerName: string; customerPhone: string; items: any[]; totalAmount: number }): Promise<Order> => {
     const response = await api.post('/orders', orderData);
     return response.data;
   },
   
   getById: async (id: string): Promise<Order> => {
-    const response = await api.get(`/orders/${id}`);
+    const response = await api.get(`/orders/${id}`, {
+      params: { _t: Date.now() },
+    });
     return response.data;
   },
   
@@ -77,6 +79,29 @@ export const orderAPI = {
   
   getByTable: async (tableId: string): Promise<Order[]> => {
     const response = await api.get(`/orders/table/${tableId}`);
+    return response.data;
+  },
+
+  // Admin analytics endpoints
+  getAllOrders: async (): Promise<Order[]> => {
+    const response = await api.get('/orders/admin/all-orders');
+    return response.data;
+  },
+
+  getDailySalesAnalytics: async (startDate?: string, endDate?: string): Promise<any[]> => {
+    const response = await api.get('/orders/admin/sales-analytics', {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  },
+
+  getOrderStatusSummary: async (): Promise<any[]> => {
+    const response = await api.get('/orders/admin/status-summary');
+    return response.data;
+  },
+
+  getTopMenuItems: async (): Promise<any[]> => {
+    const response = await api.get('/orders/admin/top-items');
     return response.data;
   },
 };
@@ -102,6 +127,11 @@ export const tableAPI = {
   
   getById: async (id: string) => {
     const response = await api.get(`/tables/${id}`);
+    return response.data;
+  },
+
+  getByNumber: async (tableNumber: number) => {
+    const response = await api.get(`/tables/number/${tableNumber}`);
     return response.data;
   },
   

@@ -1,5 +1,8 @@
 import express from 'express';
 import Order from '../models/Order';
+import { emitOrderUpdated } from '../utils/orderEvents';
+import { syncOrderToGoogleSheet } from '../utils/googleSheetsSync';
+import { sendReceipt } from '../utils/notifications';
 
 const router = express.Router();
 
@@ -47,6 +50,15 @@ router.post('/verify-payment', async (req, res) => {
     order.status = 'Received';
     
     await order.save();
+    emitOrderUpdated(order);
+    void syncOrderToGoogleSheet(order);
+
+    // Send receipt & feedback link to customer (SMS / Email) if available
+    try {
+      await sendReceipt(order, { toPhone: order.customerPhone, toEmail: undefined });
+    } catch (err) {
+      console.error('Error sending receipt:', err);
+    }
 
     res.json({
       success: true,

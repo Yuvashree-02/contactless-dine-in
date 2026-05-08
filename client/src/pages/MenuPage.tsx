@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { MenuItem } from '../types';
-import { menuAPI } from '../services/api';
+import { menuAPI, tableAPI } from '../services/api';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../utils/helpers';
 import Cart from '../components/Cart/Cart';
@@ -12,7 +12,7 @@ const MenuPage: React.FC = () => {
   const tableIdFromQuery = searchParams.get('table');
   const tableId = tableIdFromQuery || paramTableId;
   
-  const { addToCart, cart, setTableId: setCartTableId } = useCart();
+  const { addToCart, cart, getCartCount, setTableId: setCartTableId } = useCart();
   
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +20,8 @@ const MenuPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [categories, setCategories] = useState<string[]>([]);
   const [showCart, setShowCart] = useState(false);
+  const [addedItemId, setAddedItemId] = useState<string | null>(null);
+  const [tableDisplayLabel, setTableDisplayLabel] = useState<string>('');
 
   useEffect(() => {
     fetchMenu();
@@ -29,7 +31,28 @@ const MenuPage: React.FC = () => {
     if (tableId && setCartTableId) {
       setCartTableId(tableId);
     }
+
+    if (tableId) {
+      fetchTableLabel(tableId);
+    }
   }, [tableId, setCartTableId]);
+
+  const fetchTableLabel = async (tableRef: string) => {
+    try {
+      // If tableRef is a plain number (e.g. "1"), fetch by table number
+      let table;
+      const asNumber = Number(tableRef);
+      if (!Number.isNaN(asNumber) && String(asNumber) === tableRef) {
+        table = await tableAPI.getByNumber(asNumber);
+      } else {
+        table = await tableAPI.getById(tableRef);
+      }
+
+      setTableDisplayLabel(String(table.tableNumber || table.tableCode || tableRef));
+    } catch {
+      setTableDisplayLabel(tableRef);
+    }
+  };
 
   const fetchMenu = async () => {
     try {
@@ -55,6 +78,12 @@ const MenuPage: React.FC = () => {
   const filteredItems = selectedCategory === 'All'
     ? menuItems
     : menuItems.filter(item => item.category === selectedCategory);
+
+  const handleAddToCart = (item: MenuItem) => {
+    addToCart(item);
+    setAddedItemId(item._id);
+    setTimeout(() => setAddedItemId(null), 1000);
+  };
 
   if (loading) {
     return (
@@ -91,13 +120,13 @@ const MenuPage: React.FC = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Menu</h1>
-              <p className="text-sm text-gray-600">Table {tableId}</p>
+              <p className="text-sm text-gray-600">Table {tableDisplayLabel || tableId}</p>
             </div>
             <button
               onClick={() => setShowCart(!showCart)}
-              className="relative bg-blue-600 text-white px-4 py-2 rounded-lg"
+              className="relative bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
             >
-              Cart ({cart.length})
+              🛒 Cart ({getCartCount()})
             </button>
           </div>
         </div>
@@ -153,10 +182,15 @@ const MenuPage: React.FC = () => {
                     {formatPrice(item.price)}
                   </span>
                   <button
-                    onClick={() => addToCart(item)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                    onClick={() => handleAddToCart(item)}
+                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                      addedItemId === item._id
+                        ? 'bg-green-600 text-white'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                    disabled={addedItemId === item._id}
                   >
-                    Add to Cart
+                    {addedItemId === item._id ? '✓ Added!' : 'Add to Cart'}
                   </button>
                 </div>
               </div>

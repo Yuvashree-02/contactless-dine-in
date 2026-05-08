@@ -24,7 +24,7 @@ const AdminMenuPage: React.FC = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate('/admin/login');
+      navigate('/staff/login');
       return;
     }
     fetchMenuItems();
@@ -110,7 +110,7 @@ const AdminMenuPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-800">Menu Management</h1>
             <div className="flex gap-4">
               <button
-                onClick={() => navigate('/admin')}
+                onClick={() => navigate('/staff')}
                 className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
               >
                 ← Back to Dashboard

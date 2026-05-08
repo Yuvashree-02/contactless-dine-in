@@ -55,10 +55,10 @@ const HomePage: React.FC = () => {
               Demo: View Menu (Table 1)
             </button>
             <button
-              onClick={() => navigate('/admin/login')}
+              onClick={() => navigate('/')}
               className="w-full bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition duration-200"
             >
-              Staff Login
+              ← Back to Portal Selection
             </button>
           </div>
         ) : (

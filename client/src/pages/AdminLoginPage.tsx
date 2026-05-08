@@ -22,11 +22,11 @@ const AdminLoginPage: React.FC = () => {
         await authAPI.register(username, password, 'admin');
         const response = await authAPI.login(username, password);
         login(response.token, response.user);
-        navigate('/admin');
+        navigate('/staff');
       } else {
         const response = await authAPI.login(username, password);
         login(response.token, response.user);
-        navigate('/admin');
+        navigate('/staff');
       }
     } catch (err: any) {
       setError(err.response?.data?.message || (isRegisterMode ? 'Registration failed' : 'Invalid credentials'));
@@ -101,7 +101,7 @@ const AdminLoginPage: React.FC = () => {
             onClick={() => navigate('/')}
             className="text-gray-600 hover:text-gray-700"
           >
-            ← Back to Home
+            ← Back to Portal Selection
           </button>
         </div>
       </div>

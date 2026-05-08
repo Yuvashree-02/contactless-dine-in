@@ -4,6 +4,7 @@ import { tableAPI } from '../services/api';
 interface Table {
   _id: string;
   tableNumber: number;
+  tableCode: string;
   capacity: number;
   isAvailable: boolean;
   qrCode?: string;
@@ -92,7 +93,7 @@ const AdminTableManagementPage: React.FC = () => {
     if (table.qrCode) {
       const link = document.createElement('a');
       link.href = table.qrCode;
-      link.download = `table-${table.tableNumber}-qr.png`;
+      link.download = `${table.tableCode}-qr.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -123,8 +124,9 @@ const AdminTableManagementPage: React.FC = () => {
               </style>
             </head>
             <body>
-              <h1>Table ${table.tableNumber}</h1>
+              <h1>Table ${table.tableCode}</h1>
               <img src="${table.qrCode}" alt="QR Code" />
+              <p>Number: ${table.tableNumber}</p>
               <p>Capacity: ${table.capacity} persons</p>
               <p>Scan to view menu and place order</p>
             </body>
@@ -192,7 +194,8 @@ const AdminTableManagementPage: React.FC = () => {
               <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-2xl font-bold text-gray-900">Table {table.tableNumber}</h3>
+                    <h3 className="text-2xl font-bold text-gray-900">Table {table.tableCode}</h3>
+                    <p className="text-gray-500 text-sm mt-1">Number: {table.tableNumber}</p>
                     <p className="text-gray-600 mt-1">Capacity: {table.capacity} persons</p>
                   </div>
                   <span
@@ -211,7 +214,7 @@ const AdminTableManagementPage: React.FC = () => {
                   <div className="bg-gray-50 p-4 rounded-lg mb-4 text-center">
                     <img
                       src={table.qrCode}
-                      alt={`QR Code for Table ${table.tableNumber}`}
+                      alt={`QR Code for Table ${table.tableCode}`}
                       className="w-48 h-48 mx-auto"
                     />
                   </div>

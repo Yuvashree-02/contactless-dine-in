@@ -4,6 +4,8 @@ import QRCode from 'qrcode';
 import Table from './models/Table';
 import connectDB from './config/database';
 
+const toTableCode = (tableNumber: number) => `T${String(tableNumber).padStart(3, '0')}`;
+
 dotenv.config();
 
 const seedTables = async () => {
@@ -21,6 +23,7 @@ const seedTables = async () => {
       
       const table = new Table({
         tableNumber: i,
+        tableCode: toTableCode(i),
         capacity,
         isAvailable: true,
       });
@@ -29,9 +32,10 @@ const seedTables = async () => {
 
       // Generate QR code
       const qrData = JSON.stringify({
-        tableId: savedTable._id,
+        tableId: savedTable.tableCode,
         tableNumber: savedTable.tableNumber,
-        restaurantUrl: `http://localhost:3000/menu?table=${savedTable._id}`
+        tableCode: savedTable.tableCode,
+        restaurantUrl: `http://localhost:3000/table/${savedTable.tableCode}`
       });
       
       const qrCode = await QRCode.toDataURL(qrData, {

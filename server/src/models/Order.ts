@@ -9,6 +9,8 @@ interface IOrderItem {
 
 export interface IOrder extends Document {
   tableId: string;
+  customerName: string;
+  customerPhone: string;
   items: IOrderItem[];
   status: 'Pending Payment' | 'Received' | 'In Kitchen' | 'Ready' | 'Served';
   totalAmount: number;
@@ -17,10 +19,13 @@ export interface IOrder extends Document {
   paymentId?: string;
   paidAt?: Date;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const OrderSchema: Schema = new Schema({
   tableId: { type: String, required: true },
+  customerName: { type: String, required: true, trim: true },
+  customerPhone: { type: String, required: true, trim: true },
   items: [{
     menuItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'MenuItem' },
     name: { type: String, required: true },
@@ -41,6 +46,12 @@ const OrderSchema: Schema = new Schema({
   paymentMethod: { type: String },
   paymentId: { type: String },
   paidAt: { type: Date }
+  ,
+  feedback: {
+    rating: { type: Number },
+    comments: { type: String },
+    submittedAt: { type: Date }
+  }
 }, { timestamps: true });
 
 export default mongoose.model<IOrder>('Order', OrderSchema);

@@ -1,26 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Order } from '../types';
-import { orderAPI } from '../services/api';
+import { Order, Table } from '../types';
+import { orderAPI, tableAPI } from '../services/api';
 import { formatPrice, formatDate, getStatusColor } from '../utils/helpers';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [tableCodeMap, setTableCodeMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate('/admin/login');
+      navigate('/staff/login');
       return;
     }
     fetchOrders();
+    fetchTableMap();
     const interval = setInterval(fetchOrders, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
   }, [filter, isAuthenticated]);
+
+  const fetchTableMap = async () => {
+    try {
+      const tables: Table[] = await tableAPI.getAll();
+      const map = tables.reduce<Record<string, string>>((acc, table) => {
+        acc[table._id] = table.tableCode;
+        acc[table.tableCode] = table.tableCode;
+        return acc;
+      }, {});
+      setTableCodeMap(map);
+    } catch (error) {
+      console.error('Failed to fetch tables', error);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -47,7 +63,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/admin/login');
+    navigate('/staff/login');
   };
 
   const statuses = ['Received', 'In Kitchen', 'Ready', 'Served'];
@@ -64,13 +80,19 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div className="flex gap-4">
               <button
-                onClick={() => navigate('/admin/tables')}
+                onClick={() => navigate('/staff/analytics')}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+              >
+                📊 Sales Analytics
+              </button>
+              <button
+                onClick={() => navigate('/staff/tables')}
                 className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
               >
                 📋 Manage Tables
               </button>
               <button
-                onClick={() => navigate('/admin/menu')}
+                onClick={() => navigate('/staff/menu')}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
               >
                 🍴 Manage Menu
@@ -127,8 +149,11 @@ const AdminDashboard: React.FC = () => {
               <div key={order._id} className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="font-bold text-lg">Table {order.tableId}</h3>
+                    <h3 className="font-bold text-lg">Table {tableCodeMap[order.tableId] || order.tableId}</h3>
                     <p className="text-sm text-gray-500">{formatDate(order.createdAt)}</p>
+                    <p className="text-sm text-gray-700 mt-1">
+                      Customer: <span className="font-medium">{order.customerName}</span> ({order.customerPhone})
+                    </p>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-white text-sm ${getStatusColor(order.status)}`}>
                     {order.status}

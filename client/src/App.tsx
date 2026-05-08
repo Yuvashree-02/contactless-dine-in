@@ -2,18 +2,9 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
-
-// Customer Pages
-import HomePage from './pages/HomePage';
-import MenuPage from './pages/MenuPage';
-import CheckoutPage from './pages/CheckoutPage';
-import OrderTrackingPage from './pages/OrderTrackingPage';
-
-// Admin Pages
-import AdminLoginPage from './pages/AdminLoginPage';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminMenuPage from './pages/AdminMenuPage';
-import AdminTableManagementPage from './pages/AdminTableManagementPage';
+import LiveOrderNotifier from './components/Order/LiveOrderNotifier';
+import { userModuleRoutes } from './modules/user';
+import { staffModuleRoutes } from './modules/staff';
 
 const App: React.FC = () => {
   return (
@@ -21,20 +12,20 @@ const App: React.FC = () => {
       <CartProvider>
         <Router>
           <div className="min-h-screen bg-gray-50">
+            <LiveOrderNotifier />
             <Routes>
-              {/* Customer Routes */}
-              <Route path="/" element={<HomePage />} />
-              <Route path="/table/:tableId" element={<MenuPage />} />
-              <Route path="/checkout" element={<CheckoutPage />} />
-              <Route path="/order/:orderId" element={<OrderTrackingPage />} />
-              
-              {/* Admin Routes */}
-              <Route path="/admin/login" element={<AdminLoginPage />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/menu" element={<AdminMenuPage />} />
-              <Route path="/admin/tables" element={<AdminTableManagementPage />} />
-              
-              {/* Fallback */}
+              {/* Staff module (independent) */}
+              {staffModuleRoutes}
+
+              {/* User module (independent) */}
+              {userModuleRoutes}
+
+              {/* Backward-compatibility redirects for legacy admin URLs */}
+              <Route path="/admin/login" element={<Navigate to="/staff/login" replace />} />
+              <Route path="/admin/menu" element={<Navigate to="/staff/menu" replace />} />
+              <Route path="/admin/tables" element={<Navigate to="/staff/tables" replace />} />
+              <Route path="/admin" element={<Navigate to="/staff" replace />} />
+
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>

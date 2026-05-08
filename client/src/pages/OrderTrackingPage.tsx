@@ -1,36 +1,133 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { orderAPI } from '../services/api';
+import { orderAPI, tableAPI } from '../services/api';
 import { Order } from '../types';
 import { getStatusColor } from '../utils/helpers';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const OrderTrackingPage: React.FC = () => {
     const { orderId } = useParams<{ orderId: string }>();
     const [order, setOrder] = useState<Order | null>(null);
+    const [tableDisplayLabel, setTableDisplayLabel] = useState<string>('');
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [statusNotice, setStatusNotice] = useState<string>('');
+    const [streamConnected, setStreamConnected] = useState(false);
     const [error, setError] = useState<string>('');
 
-    useEffect(() => {
-        const fetchOrder = async () => {
-            if (!orderId) return;
-            
-            try {
-                setLoading(true);
-                const order = await orderAPI.getById(orderId);
-                setOrder(order);
-            } catch (err: any) {
-                setError(err.response?.data?.message || 'Failed to fetch order');
-            } finally {
-                setLoading(false);
+    const getStatusStorageKey = () => `order:lastStatus:${orderId || ''}`;
+
+    const notifyStatusChange = (newStatus: string) => {
+        const notice = `Order status updated to ${newStatus}`;
+        setStatusNotice(notice);
+
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Order Status Updated', { body: notice });
+        }
+    };
+
+    const updateStoredStatus = (status: string) => {
+        if (!orderId) return;
+        localStorage.setItem(getStatusStorageKey(), status);
+    };
+
+    const getStoredStatus = () => {
+        if (!orderId) return null;
+        return localStorage.getItem(getStatusStorageKey());
+    };
+
+    const applyOrderUpdate = (updatedOrder: Order) => {
+        setOrder((previousOrder) => {
+            const storedStatus = getStoredStatus();
+            const previousStatus = previousOrder?.status || storedStatus;
+
+            if (previousStatus && previousStatus !== updatedOrder.status) {
+                notifyStatusChange(updatedOrder.status);
             }
+
+            updateStoredStatus(updatedOrder.status);
+            return updatedOrder;
+        });
+    };
+
+    const resolveTableLabel = async (tableRef: string) => {
+        try {
+            const table = await tableAPI.getById(tableRef);
+            return String(table.tableNumber || table.tableCode || tableRef);
+        } catch {
+            return tableRef;
+        }
+    };
+
+    const fetchOrder = async (isInitialLoad = false) => {
+        if (!orderId) return;
+
+        try {
+            if (isInitialLoad) {
+                setLoading(true);
+            } else {
+                setRefreshing(true);
+            }
+
+            const order = await orderAPI.getById(orderId);
+            applyOrderUpdate(order);
+
+            const label = await resolveTableLabel(order.tableId);
+            setTableDisplayLabel(label);
+            setError('');
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to fetch order');
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchOrder(true);
+
+        if (!orderId) {
+            return;
+        }
+
+        const eventSource = new EventSource(`${API_BASE_URL}/orders/stream/${orderId}`);
+        eventSource.onopen = () => {
+            setStreamConnected(true);
         };
 
-        fetchOrder();
-        
-        // Poll for updates every 10 seconds
-        const interval = setInterval(fetchOrder, 10000);
-        return () => clearInterval(interval);
+        eventSource.addEventListener('order-update', async (event) => {
+            try {
+                const updatedOrder = JSON.parse((event as MessageEvent).data) as Order;
+                applyOrderUpdate(updatedOrder);
+
+                const label = await resolveTableLabel(updatedOrder.tableId);
+                setTableDisplayLabel(label);
+            } catch (streamError) {
+                console.error('Failed to parse stream update', streamError);
+            }
+        });
+
+        eventSource.onerror = () => {
+            // Polling remains active as fallback.
+            setStreamConnected(false);
+            eventSource.close();
+        };
+
+        // Poll for updates frequently so admin changes appear quickly.
+        const interval = setInterval(() => fetchOrder(false), 3000);
+        return () => {
+            clearInterval(interval);
+            setStreamConnected(false);
+            eventSource.close();
+        };
     }, [orderId]);
+
+    useEffect(() => {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission().catch(() => undefined);
+        }
+    }, []);
 
     if (loading) {
         return (
@@ -80,10 +177,43 @@ const OrderTrackingPage: React.FC = () => {
             <div className="max-w-3xl mx-auto">
                 <div className="bg-white rounded-lg shadow-md p-8">
                     <h1 className="text-3xl font-bold mb-6 text-gray-800">Track Your Order</h1>
+
+                    <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm text-gray-500">
+                            {refreshing ? 'Checking for status updates...' : 'Auto-refresh every 3 seconds'}
+                        </p>
+                        <div className="flex items-center gap-2 text-sm">
+                            <span
+                                className={`w-2.5 h-2.5 rounded-full ${streamConnected ? 'bg-green-500' : 'bg-yellow-500'}`}
+                                aria-hidden="true"
+                            />
+                            <span className={streamConnected ? 'text-green-700' : 'text-yellow-700'}>
+                                {streamConnected ? 'Live connected' : 'Fallback mode'}
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => fetchOrder(false)}
+                            className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded hover:bg-gray-200"
+                        >
+                            Refresh
+                        </button>
+                    </div>
+
+                    {statusNotice && (
+                        <div className="mb-4 bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded flex items-center justify-between">
+                            <span>{statusNotice}</span>
+                            <button
+                                onClick={() => setStatusNotice('')}
+                                className="text-green-800 font-semibold"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
                     
                     <div className="mb-8">
                         <p className="text-gray-600 mb-2">Order ID: <span className="font-semibold">{order._id}</span></p>
-                        <p className="text-gray-600 mb-2">Table: <span className="font-semibold">{order.tableId}</span></p>
+                        <p className="text-gray-600 mb-2">Table: <span className="font-semibold">{tableDisplayLabel || order.tableId}</span></p>
                         <p className="text-gray-600 mb-2">Total: <span className="font-semibold text-xl">₹{order.totalAmount.toFixed(2)}</span></p>
                         <div className="mt-3 flex items-center gap-2">
                             <span className="text-gray-600">Payment Status:</span>
@@ -99,6 +229,19 @@ const OrderTrackingPage: React.FC = () => {
                             <p className="text-gray-600 text-sm mt-1">Payment Method: <span className="font-semibold">{order.paymentMethod}</span></p>
                         )}
                     </div>
+                                        {/* Receipt / Feedback prompt after payment */}
+                                        {typeof window !== 'undefined' && localStorage.getItem('receiptSent') === 'true' && localStorage.getItem('recentOrderId') === String(order._id) && (
+                                            <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded flex items-center justify-between">
+                                                <div>
+                                                    <div className="font-medium">Receipt sent to your phone</div>
+                                                    <div className="text-sm">Thanks for your payment — please rate your experience.</div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button onClick={() => { localStorage.removeItem('receiptSent'); window.location.href = `/feedback?orderId=${order._id}`; }} className="bg-blue-600 text-white px-3 py-1 rounded">Give Feedback</button>
+                                                    <button onClick={() => { localStorage.removeItem('receiptSent'); localStorage.removeItem('recentOrderId'); }} className="text-blue-600 px-3 py-1">Dismiss</button>
+                                                </div>
+                                            </div>
+                                        )}
 
                     {/* Status Timeline */}
                     <div className="mb-8">

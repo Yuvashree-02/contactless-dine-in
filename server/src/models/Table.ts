@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export interface ITable extends Document {
     tableNumber: number;
+    tableCode: string;
     capacity: number;
     isAvailable: boolean;
     qrCode?: string;
@@ -10,6 +11,11 @@ export interface ITable extends Document {
 const TableSchema: Schema = new Schema({
     tableNumber: {
         type: Number,
+        required: true,
+        unique: true
+    },
+    tableCode: {
+        type: String,
         required: true,
         unique: true
     },
@@ -26,6 +32,17 @@ const TableSchema: Schema = new Schema({
     }
 }, {
     timestamps: true
+});
+
+const toTableCode = (tableNumber: number) => `T${String(tableNumber).padStart(3, '0')}`;
+
+TableSchema.pre('validate', function (next) {
+    const doc = this as unknown as ITable;
+    if (!doc.tableCode && doc.tableNumber) {
+        doc.tableCode = toTableCode(doc.tableNumber);
+    }
+
+    next();
 });
 
 const Table = mongoose.model<ITable>('Table', TableSchema);

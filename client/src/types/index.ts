@@ -25,6 +25,8 @@ export interface OrderItem {
 export interface Order {
   _id: string;
   tableId: string;
+  customerName: string;
+  customerPhone: string;
   items: OrderItem[];
   status: 'Pending Payment' | 'Received' | 'In Kitchen' | 'Ready' | 'Served';
   totalAmount: number;
@@ -33,6 +35,15 @@ export interface Order {
   paymentId?: string;
   paidAt?: string;
   createdAt: string;
+}
+
+export interface Table {
+  _id: string;
+  tableNumber: number;
+  tableCode: string;
+  capacity: number;
+  isAvailable: boolean;
+  qrCode?: string;
 }
 
 export interface User {

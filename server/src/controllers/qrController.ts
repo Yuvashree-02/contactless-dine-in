@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import QRCode from 'qrcode';
 import Table from '../models/Table';
+
+const toTableCode = (tableNumber: number) => `T${String(tableNumber).padStart(3, '0')}`;
 
 // Generate a QR code for a specific table
 export const generateQRCode = async (req: Request, res: Response) => {
@@ -13,10 +16,12 @@ export const generateQRCode = async (req: Request, res: Response) => {
         }
 
         // Generate QR code with table information
+        const tableCode = table.tableCode || toTableCode(table.tableNumber);
         const qrData = JSON.stringify({
-            tableId: table._id,
+            tableId: tableCode,
             tableNumber: table.tableNumber,
-            restaurantUrl: `http://localhost:3000/menu?table=${table._id}`
+            tableCode,
+            restaurantUrl: `http://localhost:3000/table/${tableCode}`
         });
         
         const qrCode = await QRCode.toDataURL(qrData, {
@@ -27,6 +32,7 @@ export const generateQRCode = async (req: Request, res: Response) => {
         });
 
         // Save QR code to table document
+        table.tableCode = tableCode;
         table.qrCode = qrCode;
         await table.save();
 
@@ -43,10 +49,12 @@ export const regenerateAllQRCodes = async (req: Request, res: Response) => {
         
         const updatedTables = await Promise.all(
             tables.map(async (table) => {
+                const tableCode = table.tableCode || toTableCode(table.tableNumber);
                 const qrData = JSON.stringify({
-                    tableId: table._id,
+                    tableId: tableCode,
                     tableNumber: table.tableNumber,
-                    restaurantUrl: `http://localhost:3000/menu?table=${table._id}`
+                    tableCode,
+                    restaurantUrl: `http://localhost:3000/table/${tableCode}`
                 });
                 
                 const qrCode = await QRCode.toDataURL(qrData, {
@@ -56,6 +64,7 @@ export const regenerateAllQRCodes = async (req: Request, res: Response) => {
                     margin: 2
                 });
 
+                table.tableCode = tableCode;
                 table.qrCode = qrCode;
                 await table.save();
                 return table;
@@ -77,7 +86,12 @@ export const scanQRCode = async (req: Request, res: Response) => {
     const { tableId } = req.body;
 
     try {
-        const table = await Table.findById(tableId);
+        let table = await Table.findOne({ tableCode: tableId });
+
+        if (!table && mongoose.Types.ObjectId.isValid(tableId)) {
+            table = await Table.findById(tableId);
+        }
+
         if (!table) {
             return res.status(404).json({ message: 'Table not found' });
         }

@@ -162,7 +162,7 @@ async function seedMenu() {
 
     // Display added items
     result.forEach((item, index) => {
-      console.log(`${index + 1}. ${item.name} - $${item.price} (${item.category})`);
+      console.log(`${index + 1}. ${item.name} - ₹${item.price} (${item.category})`);
     });
 
     process.exit(0);
