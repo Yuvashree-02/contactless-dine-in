@@ -9,6 +9,9 @@ type SendOptions = {
   toEmail?: string;
 };
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 const PUBLIC_URL = process.env.PUBLIC_URL || process.env.CLIENT_URL || 'http://localhost:3000';
 
 export const sendReceipt = async (order: any, opts: SendOptions = {}) => {
@@ -46,7 +49,7 @@ export const sendReceipt = async (order: any, opts: SendOptions = {}) => {
       });
       console.log('Receipt SMS sent via Twilio to', toPhone);
     } catch (err) {
-      console.error('Failed to send SMS via Twilio:', err.message || err);
+      console.error('Failed to send SMS via Twilio:', getErrorMessage(err));
     }
   } else if (toPhone) {
     console.log('SMS not configured — would send to', toPhone, 'message:', shortMessage);
@@ -76,7 +79,7 @@ export const sendReceipt = async (order: any, opts: SendOptions = {}) => {
 
       console.log('Receipt email sent to', toEmail);
     } catch (err) {
-      console.error('Failed to send email receipt:', err.message || err);
+      console.error('Failed to send email receipt:', getErrorMessage(err));
     }
   } else if (toEmail) {
     console.log('Email not configured — would send to', toEmail, 'subject:', emailSubject);

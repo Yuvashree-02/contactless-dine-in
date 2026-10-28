@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { orderAPI, tableAPI } from '../services/api';
 import { Order } from '../types';
-import { getStatusColor } from '../utils/helpers';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -121,6 +120,8 @@ const OrderTrackingPage: React.FC = () => {
             setStreamConnected(false);
             eventSource.close();
         };
+        // Set up the stream and polling once for the current order.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orderId]);
 
     useEffect(() => {

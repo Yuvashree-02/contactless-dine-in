@@ -7,7 +7,7 @@ import { formatPrice } from '../utils/helpers';
 
 const AdminMenuPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -28,6 +28,8 @@ const AdminMenuPage: React.FC = () => {
       return;
     }
     fetchMenuItems();
+    // Load the menu when authentication state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const fetchMenuItems = async () => {

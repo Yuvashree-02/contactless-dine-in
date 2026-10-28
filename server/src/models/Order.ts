@@ -18,6 +18,11 @@ export interface IOrder extends Document {
   paymentMethod?: string;
   paymentId?: string;
   paidAt?: Date;
+  feedback?: {
+    rating?: number;
+    comments?: string;
+    submittedAt?: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
 }

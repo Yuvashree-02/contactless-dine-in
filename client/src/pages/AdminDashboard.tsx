@@ -22,6 +22,8 @@ const AdminDashboard: React.FC = () => {
     fetchTableMap();
     const interval = setInterval(fetchOrders, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
+    // Dashboard polling should be reset only when the filter or authentication changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, isAuthenticated]);
 
   const fetchTableMap = async () => {

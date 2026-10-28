@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import Order from '../models/Order';
 
+const getErrorMessage = (error: unknown): string =>
+    error instanceof Error ? error.message : 'An unexpected error occurred';
+
 // Create a new order
 export const createOrder = async (req: Request, res: Response) => {
     try {
@@ -8,7 +11,7 @@ export const createOrder = async (req: Request, res: Response) => {
         await order.save();
         res.status(201).json(order);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(400).json({ message: getErrorMessage(error) });
     }
 };
 
@@ -21,7 +24,7 @@ export const getOrderById = async (req: Request, res: Response) => {
         }
         res.json(order);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: getErrorMessage(error) });
     }
 };
 
@@ -34,7 +37,7 @@ export const updateOrder = async (req: Request, res: Response) => {
         }
         res.json(order);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(400).json({ message: getErrorMessage(error) });
     }
 };
 
@@ -47,7 +50,7 @@ export const deleteOrder = async (req: Request, res: Response) => {
         }
         res.status(204).send();
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: getErrorMessage(error) });
     }
 };
 
@@ -57,7 +60,7 @@ export const getAllOrders = async (req: Request, res: Response) => {
         const orders = await Order.find().sort({ createdAt: -1 });
         res.json(orders);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: getErrorMessage(error) });
     }
 };
 
@@ -97,7 +100,7 @@ export const getDailySalesAnalytics = async (req: Request, res: Response) => {
         const result = Object.values(dailySales).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         res.json(result);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: getErrorMessage(error) });
     }
 };
 
@@ -115,7 +118,7 @@ export const getOrderStatusSummary = async (req: Request, res: Response) => {
         ]);
         res.json(summary);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: getErrorMessage(error) });
     }
 };
 
@@ -138,7 +141,7 @@ export const submitFeedback = async (req: Request, res: Response) => {
 
         res.json({ success: true, message: 'Feedback received. Thank you!' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: getErrorMessage(error) });
     }
 };
 
@@ -159,6 +162,6 @@ export const getTopMenuItems = async (req: Request, res: Response) => {
         ]);
         res.json(topItems);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: getErrorMessage(error) });
     }
 };

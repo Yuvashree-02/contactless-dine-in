@@ -33,6 +33,8 @@ const HotelAdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    // Load dashboard data once on mount; date filters trigger this explicitly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchDashboardData = async () => {

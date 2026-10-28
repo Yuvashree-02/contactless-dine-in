@@ -12,7 +12,7 @@ const MenuPage: React.FC = () => {
   const tableIdFromQuery = searchParams.get('table');
   const tableId = tableIdFromQuery || paramTableId;
   
-  const { addToCart, cart, getCartCount, setTableId: setCartTableId } = useCart();
+  const { addToCart, getCartCount, setTableId: setCartTableId } = useCart();
   
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
