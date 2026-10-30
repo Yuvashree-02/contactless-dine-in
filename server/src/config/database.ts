@@ -1,17 +1,29 @@
 import mongoose from 'mongoose';
 
-const connectDB = async () => {
+let connectionPromise: Promise<typeof mongoose> | null = null;
+
+const connectDB = async (): Promise<typeof mongoose> => {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose;
+  }
+
+  if (!process.env.MONGO_URI) {
+    throw new Error('MONGO_URI is not configured');
+  }
+
+  if (!connectionPromise) {
+    connectionPromise = mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 10000,
+    });
+  }
+
   try {
-    await mongoose.connect(process.env.MONGO_URI || '', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    } as any);
+    const connection = await connectionPromise;
     console.log(`MongoDB Connected: ${mongoose.connection.host}`);
+    return connection;
   } catch (error) {
-    console.error('Error connecting to MongoDB:', error);
-    console.error('Please install MongoDB locally or configure MongoDB Atlas');
-    console.error('The server will continue running but database operations will fail');
-    // Don't exit - let server run without DB for now
+    connectionPromise = null;
+    throw error;
   }
 };
 
